@@ -39,6 +39,7 @@ public class JobConfiguration {
                 })
                 .build();
     }
+
     @Bean
     public Step step2() {
         return stepBuilderFactory.get("step2")
