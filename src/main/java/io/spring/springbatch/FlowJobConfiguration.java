@@ -19,54 +19,32 @@ import org.springframework.context.annotation.Configuration;
 
 @RequiredArgsConstructor
 @Configuration
-public class JobStepConfiguration {
+public class FlowJobConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
 
     @Bean
-    public Job parentJob() {
-        return this.jobBuilderFactory.get("parentJob")
-                .start(jobStep(null))
-                .next(step2()) // jobStep에서 예외발생 시 실행 X
-                .build();
-    }
-
-    @Bean
-    public Step jobStep(JobLauncher jobLauncher) {
-        return this.stepBuilderFactory.get("jobStep")
-                .job(childJob())
-                .launcher(jobLauncher)
-                .listener(new StepExecutionListener() {
-                    @Override
-                    public void beforeStep(StepExecution stepExecution) {
-                        // JobStep에 있는 ExecutionContext에 Key를 설정한다.
-                        stepExecution.getExecutionContext().putString("name", "user1");
-                    }
-
-                    @Override
-                    public ExitStatus afterStep(StepExecution stepExecution) {
-                        return null;
-                    }
-                })
-                .parametersExtractor(jobParametersExtractor())
-                .build();
-    }
-
-    @Bean
-    public Job childJob() {
-        return this.jobBuilderFactory.get("childJob")
+    public Job batchJob() {
+        return this.jobBuilderFactory.get("batchJob")
                 .start(step1())
+                .on("COMPLETED").to(step3()) // 성공 시 step3 실행
+                .from(step1())
+                .on("FAILED").to(step2()) // 실패 시 step2 실행
+                .end()
                 .build();
     }
+
+
     @Bean
     public Step step1() {
         return stepBuilderFactory.get("step1")
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-//                        throw new RuntimeException("step1 was failed");
-                        return RepeatStatus.FINISHED;
+                        System.out.println("step1 has executed");
+                        throw new RuntimeException("step1 was failed");
+                        //return RepeatStatus.FINISHED;
                     }
                 })
                 .build();
@@ -77,17 +55,23 @@ public class JobStepConfiguration {
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-                        throw new RuntimeException("step2 was failed"); // childJob은 성공, parentJob은 실패
-//                        return RepeatStatus.FINISHED;
+                        System.out.println("step2 has executed");
+                        return RepeatStatus.FINISHED;
+                    }
+                })
+                .build();
+    }
+    @Bean
+    public Step step3() {
+        return stepBuilderFactory.get("step3")
+                .tasklet(new Tasklet() {
+                    @Override
+                    public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+                        System.out.println("step3 has executed");
+                        return RepeatStatus.FINISHED;
                     }
                 })
                 .build();
     }
 
-    @Bean
-    public DefaultJobParametersExtractor jobParametersExtractor() {
-        DefaultJobParametersExtractor extractor = new DefaultJobParametersExtractor();
-        extractor.setKeys(new String[]{"name"});
-        return extractor;
-    }
 }
