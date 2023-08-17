@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @RequiredArgsConstructor
-public class IncrementerConfiguration {
+public class SimpleJobArchitectureConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -21,11 +21,10 @@ public class IncrementerConfiguration {
     @Bean
     public Job batchJob(){
         return jobBuilderFactory.get("batchJob")
+                .incrementer(new RunIdIncrementer())
                 .start(step1())
                 .next(step2())
                 .next(step3())
-                .incrementer(new CustomJobParametersIncrementer())
-                //.incrementer(new RunIdIncrementer()) // 기본 제공
                 .build();
     }
 
