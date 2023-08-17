@@ -48,7 +48,6 @@ public class SimpleJobArchitectureConfiguration {
                 .build();
     }
 
-
     @Bean
     public Step step3() {
         return stepBuilderFactory.get("step3")
