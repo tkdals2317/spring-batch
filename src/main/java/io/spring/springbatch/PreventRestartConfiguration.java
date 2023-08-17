@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @RequiredArgsConstructor
-public class ValidatorConfiguration {
+public class PreventRestartConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -24,8 +24,7 @@ public class ValidatorConfiguration {
                 .start(step1())
                 .next(step2())
                 .next(step3())
-//                .validator(new CustomJobParametersValidator())
-                .validator(new DefaultJobParametersValidator(new String[]{"name", "date"}, new String[]{"count"}))
+                .preventRestart() // false로 설정되어 재시작하지 않음 (default 값은 true)
                 .build();
     }
 
@@ -43,6 +42,7 @@ public class ValidatorConfiguration {
     public Step step2() {
         return stepBuilderFactory.get("step2")
                 .tasklet((contribution, chunkContext) -> {
+                    //throw new RuntimeException("step2 was failed");
                     System.out.println(">> step2 has executed!");
                     return RepeatStatus.FINISHED;
                 })
