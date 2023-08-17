@@ -23,7 +23,7 @@ import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
-public class StepbBuilderConfiguration {
+public class StepBuilderConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
