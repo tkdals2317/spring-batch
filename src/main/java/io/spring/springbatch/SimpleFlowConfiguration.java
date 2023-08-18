@@ -8,7 +8,6 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.job.builder.FlowBuilder;
 import org.springframework.batch.core.job.flow.Flow;
-import org.springframework.batch.core.job.flow.JobExecutionDecider;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
@@ -17,17 +16,18 @@ import org.springframework.context.annotation.Configuration;
 
 @RequiredArgsConstructor
 @Configuration
-public class FlowJobConfiguration {
+public class SimpleFlowConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
 
     @Bean
-    public Job batchJob() {
+    public Job job() {
+        // 큰 SimpleFlow 안에 SimpleFlow가 있는 구조
         return this.jobBuilderFactory.get("batchJob")
                 .start(flow())
                 .next(step3())
-                .end()
+                .end() // SimpleFlow 생성
                 .build();
     }
 
@@ -36,7 +36,7 @@ public class FlowJobConfiguration {
         FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("flow");
         flowBuilder.start(step1())
                 .next(step2())
-                .end();
+                .end(); // SimpleFlow 생성
 
         return flowBuilder.build();
     }
