@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
 
 @RequiredArgsConstructor
 @Configuration
-public class SimpleFlowConfiguration {
+public class FlowStepConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -24,22 +24,21 @@ public class SimpleFlowConfiguration {
     @Bean
     public Job job() {
         return this.jobBuilderFactory.get("batchJob")
-                .start(step1())
-                    .on("COMPLETED")
-                    .to(step2())
-                .from(step1())
-                    .on("FAILED")
-                    .to(flow())
-                .end()
+                .start(flowStep())
+                .next(step2())
                 .build();
     }
 
     @Bean
+    public Step flowStep(){
+        return stepBuilderFactory.get("flowStep")
+                .flow(flow())
+                .build();
+    }
+    @Bean
     public Flow flow() {
-        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("flow1");
-        flowBuilder.start(step2())
-                .on("*")
-                .to(step3())
+        FlowBuilder<Flow> flowBuilder = new FlowBuilder<>("flow");
+        flowBuilder.start(step1())
                 .end();
 
         return flowBuilder.build();
@@ -52,8 +51,8 @@ public class SimpleFlowConfiguration {
                     @Override
                     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
                         System.out.println(">> step1 has executed");
-                        throw new RuntimeException("step1 was failed");
-                        //return RepeatStatus.FINISHED;
+                        //throw new RuntimeException("step1 was failed");
+                        return RepeatStatus.FINISHED;
                     }
                 })
                 .build();
@@ -72,17 +71,6 @@ public class SimpleFlowConfiguration {
                 .build();
     }
 
-    @Bean
-    public Step step3() {
-        return stepBuilderFactory.get("step3")
-                .tasklet(new Tasklet() {
-                    @Override
-                    public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-                        System.out.println(">> step3 has executed");
-                        return RepeatStatus.FINISHED;
-                    }
-                })
-                .build();
-    }
+
 
 }
