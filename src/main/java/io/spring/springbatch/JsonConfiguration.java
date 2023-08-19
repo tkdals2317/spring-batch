@@ -6,17 +6,22 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemStreamWriter;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.json.JacksonJsonObjectReader;
+import org.springframework.batch.item.json.builder.JsonItemReaderBuilder;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @RequiredArgsConstructor
 @Configuration
-public class ItemReader_ItemProcessor_ItemWriter_Configuration {
+public class JsonConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -32,29 +37,27 @@ public class ItemReader_ItemProcessor_ItemWriter_Configuration {
     @Bean
     public Step step1() {
         return stepBuilderFactory.get("step1")
-                .<String, String>chunk(5)
-                .reader(itemStreamReader())
-                .writer(itemStreamWriter())
+                .<Customer, Customer>chunk(5)
+                .reader(customItemReader())
+                .writer(customItemWriter())
                 .build();
     }
 
-    @Bean
-    public ItemStreamWriter<? super String> itemStreamWriter() {
-        return new CustomItemStreamWriter();
+    private ItemReader<? extends Customer> customItemReader() {
+        return new JsonItemReaderBuilder<Customer>()
+                .name("jsonReader")
+                .resource(new ClassPathResource("customer.json"))
+                .jsonObjectReader(new JacksonJsonObjectReader<>(Customer.class))
+                .build();
     }
 
-
-    @Bean
-    public CustomItemStreamReader itemStreamReader() {
-        List<String> items = new ArrayList<>(10);
-
-        for (int i = 0; i < 10; i++) {
-            items.add(String.valueOf(i));
-        }
-
-        return new CustomItemStreamReader(items);
+    private ItemWriter<? super Customer> customItemWriter() {
+        return items -> {
+            for (Customer item : items) {
+                System.out.println(item.toString());
+            }
+        };
     }
-
 
     @Bean
     public Step step2() {
