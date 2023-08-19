@@ -5,18 +5,23 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.step.tasklet.Tasklet;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Arrays;
+import java.util.List;
+
 @RequiredArgsConstructor
 @Configuration
-public class JobScope_StepScope_Configuration {
+public class ChunkConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -24,21 +29,34 @@ public class JobScope_StepScope_Configuration {
     @Bean
     public Job job() {
         return jobBuilderFactory.get("batchJob")
-                .start(step1(null))
+                .start(step1())
                 .next(step2())
-                .listener(new JobListener())
                 .build();
     }
 
     @Bean
-    @JobScope
-    public Step step1(@Value("#{jobParameters['message']}") String message) {
-
-        System.out.println("jobParameters['message'] : " + message);
+    public Step step1() {
         return stepBuilderFactory.get("step1")
-                .tasklet(tasklet1(null))
+                .<String, String>chunk(5)
+                .reader(new ListItemReader<>(Arrays.asList("item1","item2","item3","item4","item5","item6")))
+                .processor(new ItemProcessor<String, String>() {
+                    @Override
+                    public String process(String item) throws Exception {
+                        Thread.sleep(300);
+                        System.out.println("item = " + item);
+                        return "my" + item;
+                    }
+                })
+                .writer(new ItemWriter<String>() {
+                    @Override
+                    public void write(List<? extends String> list) throws Exception {
+                        Thread.sleep(300);
+                        System.out.println(list);
+                    }
+                })
                 .build();
     }
+
 
     @Bean
     public Step step2() {
@@ -48,14 +66,5 @@ public class JobScope_StepScope_Configuration {
                     return RepeatStatus.FINISHED;
                 })
                 .build();
-    }
-
-    @Bean
-    @StepScope
-    public Tasklet tasklet1(@Value("#{jobExecutionContext['name']}") String name){
-        return (stepContribution, chunkContext) -> {
-            System.out.println("jobExecutionContext['name'] : " + name);
-            return RepeatStatus.FINISHED;
-        };
     }
 }
