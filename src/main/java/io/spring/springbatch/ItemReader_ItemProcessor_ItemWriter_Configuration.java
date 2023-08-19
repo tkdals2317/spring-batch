@@ -6,15 +6,12 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.support.ListItemReader;
+import org.springframework.batch.item.ItemStreamWriter;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -35,29 +32,27 @@ public class ItemReader_ItemProcessor_ItemWriter_Configuration {
     @Bean
     public Step step1() {
         return stepBuilderFactory.get("step1")
-                .<Customer, Customer>chunk(3)
-                .reader(itemReader())
-                .processor(itemProcessor())
-                .writer(itemWriter())
+                .<String, String>chunk(5)
+                .reader(itemStreamReader())
+                .writer(itemStreamWriter())
                 .build();
     }
 
     @Bean
-    public ItemWriter<? super Customer> itemWriter() {
-        return new CustomItemWriter();
+    public ItemStreamWriter<? super String> itemStreamWriter() {
+        return new CustomItemStreamWriter();
     }
 
-    @Bean
-    public ItemProcessor<? super Customer, ? extends Customer> itemProcessor() {
-        return new CustomItemProcessor();
-    }
 
     @Bean
-    public ItemReader<Customer> itemReader() {
-        return new CustomItemReader(Arrays.asList(
-                new Customer("user1"),
-                new Customer("user2"),
-                new Customer("user3")));
+    public CustomItemStreamReader itemStreamReader() {
+        List<String> items = new ArrayList<>(10);
+
+        for (int i = 0; i < 10; i++) {
+            items.add(String.valueOf(i));
+        }
+
+        return new CustomItemStreamReader(items);
     }
 
 
