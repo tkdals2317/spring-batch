@@ -9,13 +9,10 @@ import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.integration.async.AsyncItemProcessor;
 import org.springframework.batch.integration.async.AsyncItemWriter;
 import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.adapter.ItemReaderAdapter;
 import org.springframework.batch.item.database.*;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
-import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
-import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
@@ -26,7 +23,7 @@ import java.util.Map;
 
 @RequiredArgsConstructor
 @Configuration
-public class AsyncConfiguration {
+public class JdbcBatchfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -36,8 +33,7 @@ public class AsyncConfiguration {
     public Job job() throws Exception {
         return jobBuilderFactory.get("batchJob")
                 .incrementer(new RunIdIncrementer())
-//                .start(step1())
-                .start(asyncStep1())
+                .start(step1())
                 .listener(new StopWatchJobListener())
                 .build();
     }
@@ -50,32 +46,6 @@ public class AsyncConfiguration {
                 .processor(customItemProcessor())
                 .writer(customItemWriter())
                 .build();
-    }
-
-    @Bean
-    public Step asyncStep1() throws Exception {
-        return stepBuilderFactory.get("asyncStep1")
-                .<Customer, Customer>chunk(100)
-                .reader(pagingItemReader())
-                .processor(asyncItemProcessor())
-                .writer(asyncItemWriter())
-                .build();
-    }
-
-    @Bean
-    public AsyncItemWriter<Customer> asyncItemWriter() {
-        AsyncItemWriter<Customer> asyncItemWriter = new AsyncItemWriter<>();
-        asyncItemWriter.setDelegate(customItemWriter());
-        return asyncItemWriter;
-    }
-
-    @Bean
-    public AsyncItemProcessor asyncItemProcessor() {
-        AsyncItemProcessor<Customer, Customer> asyncItemProcessor = new AsyncItemProcessor<>();
-        asyncItemProcessor.setDelegate(customItemProcessor());
-        asyncItemProcessor.setTaskExecutor(new SimpleAsyncTaskExecutor());
-
-        return asyncItemProcessor;
     }
 
     @Bean
@@ -107,8 +77,6 @@ public class AsyncConfiguration {
             @Override
             public Customer process(Customer item) throws Exception {
 
-                Thread.sleep(30);
-
                 return new Customer(item.getId(),
                         item.getFirstName().toUpperCase(),
                         item.getLastName().toUpperCase(),
@@ -118,14 +86,11 @@ public class AsyncConfiguration {
     }
 
     @Bean
-    public JdbcBatchItemWriter<Customer> customItemWriter() {
-        JdbcBatchItemWriter<Customer> itemWriter = new JdbcBatchItemWriter<>();
-
-        itemWriter.setDataSource(this.dataSource);
-        itemWriter.setSql("insert into customer2 values (:id, :firstName, :lastName, :birthdate)");
-        itemWriter.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider());
-        itemWriter.afterPropertiesSet();
-
-        return itemWriter;
+    public ItemWriter<? super Customer> customItemWriter() {
+        return new JdbcBatchItemWriterBuilder<Customer>()
+                .dataSource(dataSource)
+                .sql("insert into customer2 values (:id, :firstName, :lastName, :birthdate)")
+                .beanMapped()
+                .build();
     }
 }
