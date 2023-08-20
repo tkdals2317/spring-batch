@@ -6,27 +6,23 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
-import org.springframework.batch.integration.async.AsyncItemProcessor;
-import org.springframework.batch.integration.async.AsyncItemWriter;
 import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.adapter.ItemReaderAdapter;
 import org.springframework.batch.item.database.*;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
-import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
-import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadPoolExecutor;
 
 @RequiredArgsConstructor
 @Configuration
-public class AsyncConfiguration {
+public class MultiThreadStepConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -36,8 +32,7 @@ public class AsyncConfiguration {
     public Job job() throws Exception {
         return jobBuilderFactory.get("batchJob")
                 .incrementer(new RunIdIncrementer())
-//                .start(step1())
-                .start(asyncStep1())
+                .start(step1())
                 .listener(new StopWatchJobListener())
                 .build();
     }
@@ -47,36 +42,25 @@ public class AsyncConfiguration {
         return stepBuilderFactory.get("step1")
                 .<Customer, Customer>chunk(100)
                 .reader(pagingItemReader())
+                .listener(new CustomItemReadListener())
                 .processor(customItemProcessor())
+                .listener(new CustomItemProcessListener())
                 .writer(customItemWriter())
+                .listener(new CustomItemWriteListener())
+                .taskExecutor(taskExecutor())
                 .build();
     }
 
     @Bean
-    public Step asyncStep1() throws Exception {
-        return stepBuilderFactory.get("asyncStep1")
-                .<Customer, Customer>chunk(100)
-                .reader(pagingItemReader())
-                .processor(asyncItemProcessor())
-                .writer(asyncItemWriter())
-                .build();
+    public TaskExecutor taskExecutor() {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(2); // 4개의 스레드로 작업
+        taskExecutor.setMaxPoolSize(8); // 아직 남은 처리가 있을 떄 생성할 최대 스레드 개수
+        taskExecutor.setThreadNamePrefix("async-thread");
+
+        return taskExecutor;
     }
 
-    @Bean
-    public AsyncItemWriter<Customer> asyncItemWriter() {
-        AsyncItemWriter<Customer> asyncItemWriter = new AsyncItemWriter<>();
-        asyncItemWriter.setDelegate(customItemWriter());
-        return asyncItemWriter;
-    }
-
-    @Bean
-    public AsyncItemProcessor asyncItemProcessor() {
-        AsyncItemProcessor<Customer, Customer> asyncItemProcessor = new AsyncItemProcessor<>();
-        asyncItemProcessor.setDelegate(customItemProcessor());
-        asyncItemProcessor.setTaskExecutor(new SimpleAsyncTaskExecutor());
-
-        return asyncItemProcessor;
-    }
 
     @Bean
     public JdbcPagingItemReader<Customer> pagingItemReader() {
@@ -106,9 +90,6 @@ public class AsyncConfiguration {
         return new ItemProcessor<Customer, Customer>() {
             @Override
             public Customer process(Customer item) throws Exception {
-
-                Thread.sleep(30);
-
                 return new Customer(item.getId(),
                         item.getFirstName().toUpperCase(),
                         item.getLastName().toUpperCase(),
